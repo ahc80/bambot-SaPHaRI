@@ -151,15 +151,29 @@ const RecordControl = ({
   };
 
   const handleSave = () => {
-    // TODO: Implement save logic using recordData
-    console.log("Saving recorded dataset...", recordData);
-    // Example: download as JSON
-    const dataStr = JSON.stringify(recordData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
+    if (!recordData || recordData.length === 0) {
+      console.warn("No data to save.");
+      return;
+    }
+
+    console.log("Saving recorded dataset as CSV...", recordData);
+
+    // Optional: Add header row like servo_1, servo_2, ...
+    const numServos = recordData[0].length;
+    const headers = Array.from({ length: numServos }, (_, i) => `servo_${i + 1}`);
+    
+    const csvRows = [
+      headers.join(','), // header row
+      ...recordData.map(row => row.join(',')) // data rows
+    ];
+
+    const csvStr = csvRows.join('\n');
+    const blob = new Blob([csvStr], { type: 'text/csv' });
+
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `robot_recording_${Date.now()}.json`;
+    link.download = `robot_recording_${Date.now()}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -296,7 +310,7 @@ const RecordControl = ({
             <ReplayHelpDialog />
           </div>
 
-          {/* <button
+          {<button
             className={`flex-1 px-2 py-2 rounded text-xs ${
               recordingState === "stopped"
                 ? "bg-blue-600 hover:bg-blue-500"
@@ -306,7 +320,7 @@ const RecordControl = ({
             disabled={recordingState !== "stopped"}
           >
             Save
-          </button> */}
+          </button>}
         </div>
       </div>
     </Rnd>
