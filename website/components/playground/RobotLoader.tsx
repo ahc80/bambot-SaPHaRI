@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState, Suspense } from "react";
 import { robotConfigMap } from "@/config/robotConfig";
 import * as THREE from "three";
@@ -14,6 +13,8 @@ import { RobotScene } from "./RobotScene";
 import KeyboardControlButton from "../playground/controlButtons/KeyboardControlButton";
 import ChatControlButton from "../playground/controlButtons/ChatControlButton";
 import LeaderControlButton from "../playground/controlButtons/LeaderControlButton";
+import GamepadControlButton from "../playground/controlButtons/GamepadButton";
+// import GamepadTeleop from "../playground/GamePadControl";
 import RecordButton from "./controlButtons/RecordButton";
 import RecordControl from "./recordControl/RecordControl";
 import {
@@ -59,6 +60,7 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
   const [showRecordControl, setShowRecordControl] = useState(() => {
     return getPanelStateFromLocalStorage("recordControl", robotName) ?? false;
   });
+  const [showGamepadControl, setShowGamepadControl] = useState(false);
   const config = robotConfigMap[robotName];
 
   // Get leader robot servo IDs (exclude continuous joint types)
@@ -157,6 +159,13 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
     setPanelStateToLocalStorage("recordControl", false, robotName);
   };
 
+  const toggleGamepadControl = () => {
+    setShowGamepadControl(prev => !prev);
+  };
+  const hideGamepadControl = () => {
+    setShowGamepadControl(false);
+  };
+
   return (
     <>
       <Canvas
@@ -225,6 +234,14 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
           );
         }}
       />
+{/* 
+      <GamepadControl
+        show={showGamepadControl}
+        onHide={hideGamepadControl}
+        updateJointsDegrees={updateJointsDegrees}
+        updateJointsSpeed={updateJointsSpeed}
+        jointDetails={jointDetails}
+      /> */}
 
       {/* Record Control overlay */}
       <RecordControl
@@ -262,6 +279,10 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
             <RecordButton
               showControlPanel={showRecordControl}
               onToggleControlPanel={toggleRecordControl}
+            />
+            <GamepadControlButton
+              showControlPanel={showGamepadControl}
+              onToggleControlPanel={toggleGamepadControl}
             />
           </div>
         </div>
