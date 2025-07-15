@@ -392,6 +392,7 @@ export function useRobotControl(
     // Recording functions
     isRecording,
     recordData,
+    setRecordData,
     startRecording,
     stopRecording,
     clearRecordData,

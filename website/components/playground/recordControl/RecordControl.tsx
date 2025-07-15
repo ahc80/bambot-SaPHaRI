@@ -15,6 +15,7 @@ interface RecordControlProps {
   clearRecordData: () => void;
   updateJointsDegrees?: (updates: { servoId: number; value: number }[]) => void;
   updateJointsSpeed?: (updates: { servoId: number; speed: number }[]) => void;
+  updateRecordData: (newData: number[][]) => void;
   jointDetails?: { servoId: number; jointType: "revolute" | "continuous" }[];
   leaderControl?: {
     isConnected: boolean;
@@ -34,6 +35,7 @@ const RecordControl = ({
   clearRecordData,
   updateJointsDegrees,
   updateJointsSpeed,
+  updateRecordData,
   jointDetails = [],
   leaderControl,
 }: RecordControlProps) => {
@@ -84,6 +86,7 @@ const RecordControl = ({
     stopRecording();
   };
 
+  //Recording//Save
   const handleReplay = async () => {
     if (recordData.length === 0 || !updateJointsDegrees || !updateJointsSpeed) {
       console.warn("No data to replay or missing update functions");
@@ -145,6 +148,60 @@ const RecordControl = ({
     setRecordingState("stopped");
     setReplayProgress(0);
   };
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split("\n").filter(Boolean);
+      const parsedData = lines.map((line) =>
+        line.split(",").map((val) => parseFloat(val))
+      );
+      updateRecordData(parsedData);
+    };
+    reader.readAsText(file);
+  };
+
+  //Loading CSV Files
+  const handleLoadCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = reader.result as string;
+    const rows = text.split("\n").map(line => line.trim()).filter(Boolean);
+    const data: number[][] = [];
+
+    // Optional: skip header
+    const hasHeader = rows[0].startsWith("servo_");
+    const dataRows = hasHeader ? rows.slice(1) : rows;
+
+    for (const row of dataRows) {
+      const nums = row.split(",").map(Number);
+      if (nums.every(n => !isNaN(n))) {
+        data.push(nums);
+      }
+    }
+
+    if (data.length > 0) {
+      clearRecordData(); // optional
+      stopRecording();   // ensure not in recording state
+      setRecordingState("stopped"); // so you can press Replay
+      setReplayProgress(0);
+      setRecordingTime(data.length * (RECORDING_INTERVAL / 1000));
+      updateRecordData(data);
+    }
+  };
+
+  reader.readAsText(file);
+};
+
 
   const handleStopReplay = () => {
     isReplayingRef.current = false;
@@ -322,6 +379,21 @@ const RecordControl = ({
             Save
           </button>}
         </div>
+
+        <input
+          type="file"
+          accept=".csv"
+          onChange={handleLoadCSV}
+          className="flex-1 text-xs bg-zinc-700 text-white rounded px-2 py-2 file:bg-zinc-600 file:text-white file:rounded file:px-2 file:py-1"
+        />
+
+        <button
+          className="flex-1 px-2 py-2 rounded text-xs bg-blue-600 hover:bg-blue-500"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          Load CSV
+        </button>
+
       </div>
     </Rnd>
   );

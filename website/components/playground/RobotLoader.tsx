@@ -47,19 +47,10 @@ function Loader() {
 
 export default function RobotLoader({ robotName }: RobotLoaderProps) {
   const [jointDetails, setJointDetails] = useState<JointDetails[]>([]);
-  const [showControlPanel, setShowControlPanel] = useState(() => {
-    const stored = getPanelStateFromLocalStorage("keyboardControl", robotName);
-    return stored !== null ? stored : window.innerWidth >= 900;
-  });
-  const [showLeaderControl, setShowLeaderControl] = useState(() => {
-    return getPanelStateFromLocalStorage("leaderControl", robotName) ?? false;
-  });
-  const [showChatControl, setShowChatControl] = useState(() => {
-    return getPanelStateFromLocalStorage("chatControl", robotName) ?? false;
-  });
-  const [showRecordControl, setShowRecordControl] = useState(() => {
-    return getPanelStateFromLocalStorage("recordControl", robotName) ?? false;
-  });
+  const [showControlPanel, setShowControlPanel] = useState<boolean>(false);
+  const [showLeaderControl, setShowLeaderControl] = useState<boolean>(false);
+  const [showChatControl, setShowChatControl] = useState<boolean>(false);
+  const [showRecordControl, setShowRecordControl] = useState<boolean>(false);
   const [showGamepadControl, setShowGamepadControl] = useState(false);
   const config = robotConfigMap[robotName];
 
@@ -71,9 +62,9 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
   // Initialize leader robot control hook
   const leaderControl = useLeaderRobotControl(leaderServoIds);
 
-  if (!config) {
-    throw new Error(`Robot configuration for "${robotName}" not found.`);
-  }
+  // if (!config) {
+  //   throw new Error(Robot configuration for "${robotName}" not found.);
+  // }
 
   const {
     urdfUrl,
@@ -97,13 +88,24 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
     updateJointsSpeed,
     isRecording,
     recordData,
+    setRecordData,
     startRecording,
     stopRecording,
     clearRecordData,
   } = useRobotControl(jointDetails, urdfInitJointAngles);
 
   useEffect(() => {
-    updateJointDetails(jointDetails);
+      if (typeof window !== "undefined") {
+    const storedControl = getPanelStateFromLocalStorage("keyboardControl", robotName);
+    const storedLeader = getPanelStateFromLocalStorage("leaderControl", robotName);
+    const storedChat = getPanelStateFromLocalStorage("chatControl", robotName);
+    const storedRecord = getPanelStateFromLocalStorage("recordControl", robotName);
+
+    setShowControlPanel(storedControl !== null ? storedControl : window.innerWidth >= 900);
+    setShowLeaderControl(storedLeader ?? false);
+    setShowChatControl(storedChat ?? false);
+    setShowRecordControl(storedRecord ?? false);
+  }
   }, [jointDetails, updateJointDetails]);
 
   // Functions to handle panel state changes and localStorage updates
@@ -254,6 +256,7 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
         clearRecordData={clearRecordData}
         updateJointsDegrees={updateJointsDegrees}
         updateJointsSpeed={updateJointsSpeed}
+        updateRecordData={setRecordData}
         jointDetails={jointDetails}
         leaderControl={{
           isConnected: leaderControl.isConnected,
@@ -280,10 +283,10 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
               showControlPanel={showRecordControl}
               onToggleControlPanel={toggleRecordControl}
             />
-            <GamepadControlButton
+            {/* <GamepadControlButton
               showControlPanel={showGamepadControl}
               onToggleControlPanel={toggleGamepadControl}
-            />
+            /> */}
           </div>
         </div>
       </div>
