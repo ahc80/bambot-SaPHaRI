@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState, Suspense } from "react";
 import { robotConfigMap } from "@/config/robotConfig";
 import * as THREE from "three";
@@ -13,8 +14,6 @@ import { RobotScene } from "./RobotScene";
 import KeyboardControlButton from "../playground/controlButtons/KeyboardControlButton";
 import ChatControlButton from "../playground/controlButtons/ChatControlButton";
 import LeaderControlButton from "../playground/controlButtons/LeaderControlButton";
-import GamepadControlButton from "../playground/controlButtons/GamepadButton";
-// import GamepadTeleop from "../playground/GamePadControl";
 import RecordButton from "./controlButtons/RecordButton";
 import RecordControl from "./recordControl/RecordControl";
 import {
@@ -47,11 +46,19 @@ function Loader() {
 
 export default function RobotLoader({ robotName }: RobotLoaderProps) {
   const [jointDetails, setJointDetails] = useState<JointDetails[]>([]);
-  const [showControlPanel, setShowControlPanel] = useState<boolean>(false);
-  const [showLeaderControl, setShowLeaderControl] = useState<boolean>(false);
-  const [showChatControl, setShowChatControl] = useState<boolean>(false);
-  const [showRecordControl, setShowRecordControl] = useState<boolean>(false);
-  const [showGamepadControl, setShowGamepadControl] = useState(false);
+  const [showControlPanel, setShowControlPanel] = useState(() => {
+    const stored = getPanelStateFromLocalStorage("keyboardControl", robotName);
+    return stored !== null ? stored : window.innerWidth >= 900;
+  });
+  const [showLeaderControl, setShowLeaderControl] = useState(() => {
+    return getPanelStateFromLocalStorage("leaderControl", robotName) ?? false;
+  });
+  const [showChatControl, setShowChatControl] = useState(() => {
+    return getPanelStateFromLocalStorage("chatControl", robotName) ?? false;
+  });
+  const [showRecordControl, setShowRecordControl] = useState(() => {
+    return getPanelStateFromLocalStorage("recordControl", robotName) ?? false;
+  });
   const config = robotConfigMap[robotName];
 
   // Get leader robot servo IDs (exclude continuous joint types)
@@ -62,9 +69,9 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
   // Initialize leader robot control hook
   const leaderControl = useLeaderRobotControl(leaderServoIds);
 
-  // if (!config) {
-  //   throw new Error(Robot configuration for "${robotName}" not found.);
-  // }
+  if (!config) {
+    throw new Error(`Robot configuration for "${robotName}" not found.`);
+  }
 
   const {
     urdfUrl,
@@ -88,56 +95,44 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
     updateJointsSpeed,
     isRecording,
     recordData,
-    setRecordData,
+    setRecordData,                        // <--- grab setter
     startRecording,
     stopRecording,
     clearRecordData,
   } = useRobotControl(jointDetails, urdfInitJointAngles);
 
+  // feed URDF joints into hook
   useEffect(() => {
-      if (typeof window !== "undefined") {
-    const storedControl = getPanelStateFromLocalStorage("keyboardControl", robotName);
-    const storedLeader = getPanelStateFromLocalStorage("leaderControl", robotName);
-    const storedChat = getPanelStateFromLocalStorage("chatControl", robotName);
-    const storedRecord = getPanelStateFromLocalStorage("recordControl", robotName);
-
-    setShowControlPanel(storedControl !== null ? storedControl : window.innerWidth >= 900);
-    setShowLeaderControl(storedLeader ?? false);
-    setShowChatControl(storedChat ?? false);
-    setShowRecordControl(storedRecord ?? false);
-  }
+    updateJointDetails(jointDetails);
   }, [jointDetails, updateJointDetails]);
 
-  // Functions to handle panel state changes and localStorage updates
+  // panel toggles
   const toggleControlPanel = () => {
     setShowControlPanel((prev) => {
-      const newState = !prev;
-      setPanelStateToLocalStorage("keyboardControl", newState, robotName);
-      return newState;
+      const next = !prev;
+      setPanelStateToLocalStorage("keyboardControl", next, robotName);
+      return next;
     });
   };
-
   const toggleLeaderControl = () => {
     setShowLeaderControl((prev) => {
-      const newState = !prev;
-      setPanelStateToLocalStorage("leaderControl", newState, robotName);
-      return newState;
+      const next = !prev;
+      setPanelStateToLocalStorage("leaderControl", next, robotName);
+      return next;
     });
   };
-
   const toggleChatControl = () => {
     setShowChatControl((prev) => {
-      const newState = !prev;
-      setPanelStateToLocalStorage("chatControl", newState, robotName);
-      return newState;
+      const next = !prev;
+      setPanelStateToLocalStorage("chatControl", next, robotName);
+      return next;
     });
   };
-
   const toggleRecordControl = () => {
     setShowRecordControl((prev) => {
-      const newState = !prev;
-      setPanelStateToLocalStorage("recordControl", newState, robotName);
-      return newState;
+      const next = !prev;
+      setPanelStateToLocalStorage("recordControl", next, robotName);
+      return next;
     });
   };
 
@@ -145,42 +140,27 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
     setShowControlPanel(false);
     setPanelStateToLocalStorage("keyboardControl", false, robotName);
   };
-
   const hideLeaderControl = () => {
     setShowLeaderControl(false);
     setPanelStateToLocalStorage("leaderControl", false, robotName);
   };
-
   const hideChatControl = () => {
     setShowChatControl(false);
     setPanelStateToLocalStorage("chatControl", false, robotName);
   };
-
   const hideRecordControl = () => {
     setShowRecordControl(false);
     setPanelStateToLocalStorage("recordControl", false, robotName);
-  };
-
-  const toggleGamepadControl = () => {
-    setShowGamepadControl(prev => !prev);
-  };
-  const hideGamepadControl = () => {
-    setShowGamepadControl(false);
   };
 
   return (
     <>
       <Canvas
         shadows
-        camera={{
-          position: camera.position,
-          fov: camera.fov,
-        }}
-        onCreated={({ scene }) => {
-          scene.background = new THREE.Color(0x263238);
-        }}
+        camera={{ position: camera.position, fov: camera.fov }}
+        onCreated={({ scene }) => (scene.background = new THREE.Color(0x263238))}
       >
-        <Suspense fallback={<Loader />}>
+        <Suspense fallback={<Loader />}>  
           <RobotScene
             robotName={robotName}
             urdfUrl={urdfUrl}
@@ -211,41 +191,21 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
         robotName={robotName}
         systemPrompt={systemPrompt}
       />
-      {/* LeaderControl overlay */}
+
       <LeaderControl
         show={showLeaderControl}
         onHide={hideLeaderControl}
         leaderControl={leaderControl}
         jointDetails={jointDetails}
-        onSync={(leaderAngles: { servoId: number; angle: number }[]) => {
-          const revoluteJoints = jointDetails.filter(
-            (j) => j.jointType === "revolute"
-          );
-          const revoluteServoIds = new Set(
-            revoluteJoints.map((j) => j.servoId)
-          );
+        onSync={(angles) => {
+          const rev = jointDetails.filter(j=>j.jointType==='revolute');
+          const revIds = new Set(rev.map(j=>j.servoId));
           updateJointsDegrees(
-            leaderAngles
-              .filter((la) => revoluteServoIds.has(la.servoId))
-              .map(
-                ({ servoId, angle }: { servoId: number; angle: number }) => ({
-                  servoId,
-                  value: angle,
-                })
-              )
+            angles.filter(a=>revIds.has(a.servoId)).map(a=>({servoId:a.servoId,value:a.angle}))
           );
         }}
       />
-{/* 
-      <GamepadControl
-        show={showGamepadControl}
-        onHide={hideGamepadControl}
-        updateJointsDegrees={updateJointsDegrees}
-        updateJointsSpeed={updateJointsSpeed}
-        jointDetails={jointDetails}
-      /> */}
 
-      {/* Record Control overlay */}
       <RecordControl
         show={showRecordControl}
         onHide={hideRecordControl}
@@ -254,9 +214,9 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
         startRecording={startRecording}
         stopRecording={stopRecording}
         clearRecordData={clearRecordData}
+        updateRecordData={setRecordData}            // <--- pass setter
         updateJointsDegrees={updateJointsDegrees}
         updateJointsSpeed={updateJointsSpeed}
-        updateRecordData={setRecordData}
         jointDetails={jointDetails}
         leaderControl={{
           isConnected: leaderControl.isConnected,
@@ -264,30 +224,12 @@ export default function RobotLoader({ robotName }: RobotLoaderProps) {
         }}
       />
 
-      <div className="absolute bottom-5 left-0 right-0">
-        <div className="flex justify-center items-center">
-          <div className="flex gap-2 max-w-md">
-            <LeaderControlButton
-              showControlPanel={showLeaderControl}
-              onToggleControlPanel={toggleLeaderControl}
-            />
-            <KeyboardControlButton
-              showControlPanel={showControlPanel}
-              onToggleControlPanel={toggleControlPanel}
-            />
-            <ChatControlButton
-              showControlPanel={showChatControl}
-              onToggleControlPanel={toggleChatControl}
-            />
-            <RecordButton
-              showControlPanel={showRecordControl}
-              onToggleControlPanel={toggleRecordControl}
-            />
-            {/* <GamepadControlButton
-              showControlPanel={showGamepadControl}
-              onToggleControlPanel={toggleGamepadControl}
-            /> */}
-          </div>
+      <div className="absolute bottom-5 left-0 right-0 flex justify-center">
+        <div className="flex gap-2 max-w-md">
+          <LeaderControlButton showControlPanel={showLeaderControl} onToggleControlPanel={toggleLeaderControl} />
+          <KeyboardControlButton showControlPanel={showControlPanel} onToggleControlPanel={toggleControlPanel} />
+          <ChatControlButton showControlPanel={showChatControl} onToggleControlPanel={toggleChatControl} />
+          <RecordButton showControlPanel={showRecordControl} onToggleControlPanel={toggleRecordControl} />
         </div>
       </div>
     </>
