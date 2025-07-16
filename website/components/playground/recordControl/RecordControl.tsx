@@ -168,38 +168,41 @@ const RecordControl = ({
   };
 
   //Loading CSV Files
-  const handleLoadCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
-  const file = event.target.files?.[0];
+const handleLoadCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = () => {
-    const text = reader.result as string;
-    const rows = text.split("\n").map(line => line.trim()).filter(Boolean);
-    const data: number[][] = [];
-
-    // Optional: skip header
-    const hasHeader = rows[0].startsWith("servo_");
-    const dataRows = hasHeader ? rows.slice(1) : rows;
-
-    for (const row of dataRows) {
-      const nums = row.split(",").map(Number);
-      if (nums.every(n => !isNaN(n))) {
-        data.push(nums);
-      }
+  reader.onload = (ev) => {
+    const text = ev.target?.result as string;
+    const lines = text.trim().split("\n");
+    if (lines.length < 2) {
+      alert("CSV needs at least one data row after the header.");
+      return;
     }
 
-    if (data.length > 0) {
-      clearRecordData(); // optional
-      stopRecording();   // ensure not in recording state
-      setRecordingState("stopped"); // so you can press Replay
-      setReplayProgress(0);
-      setRecordingTime(data.length * (RECORDING_INTERVAL / 1000));
-      updateRecordData(data);
-    }
+    // parse rows → number[][]
+    const header = lines[0].split(",").map((h) => h.trim());
+    const data: number[][] = lines.slice(1).map((line, i) => {
+      const cols = line.split(",");
+      return cols.map((v) => {
+        const n = parseFloat(v.trim());
+        return isNaN(n) ? 0 : n;
+      });
+    });
+
+    // clear out any old recording
+    clearRecordData();
+    // let the parent hook know about the new frames
+    updateRecordData(data);
+    // switch UI to “stopped” so Replay is enabled
+    setRecordingState("stopped");
+    setRecordingTime(data.length * (RECORDING_INTERVAL / 1000));
   };
-
   reader.readAsText(file);
+
+  // allow re-loading same file
+  if (e.target) e.target.value = "";
 };
 
 
@@ -381,10 +384,11 @@ const RecordControl = ({
         </div>
 
         <input
+          ref={fileInputRef}       
           type="file"
           accept=".csv"
           onChange={handleLoadCSV}
-          className="flex-1 text-xs bg-zinc-700 text-white rounded px-2 py-2 file:bg-zinc-600 file:text-white file:rounded file:px-2 file:py-1"
+          className="hidden"            
         />
 
         <button
