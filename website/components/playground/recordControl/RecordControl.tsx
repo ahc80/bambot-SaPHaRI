@@ -184,7 +184,8 @@ const handleLoadCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     // parse rows → number[][]
     const header = lines[0].split(",").map((h) => h.trim());
     const data: number[][] = lines.slice(1).map((line, i) => {
-      const cols = line.split(",").slice(1);
+      // const cols = line.split(",").slice(1); //WHEN RUNNING ASHRAF WORK UNCOMMENT THIS
+      const cols = line.split(",");
       return cols.map((v) => {
         const n = parseFloat(v.trim());
         return isNaN(n) ? 0 : n;
